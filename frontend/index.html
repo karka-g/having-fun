@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Трекер настроения</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f4f1fa;
+      color: #2b2b3a;
+      display: flex;
+      justify-content: center;
+    }
+    main {
+      width: 100%;
+      max-width: 560px;
+      padding: 32px 16px;
+    }
+    h1 {
+      font-size: 28px;
+      text-align: center;
+      margin: 24px 0 32px;
+    }
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .option {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .option img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      background: #fff;
+      display: block;
+      border-radius: 16px;
+    }
+    button {
+      font-size: 16px;
+      padding: 16px 4px;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      color: #fff;
+    }
+    button:active { transform: scale(0.98); }
+    .great { background: #4caf7d; }
+    .ok { background: #e6a935; }
+    .bad { background: #d9625e; }
+    h2 { font-size: 16px; margin: 36px 0 12px; color: #6b6b80; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .time { color: #8a8a9c; font-size: 14px; }
+
+    @media (max-width: 380px) {
+      h1 { font-size: 24px; }
+      button { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Какое у вас сегодня настроение?</h1>
+
+    <div class="buttons">
+      <div class="option">
+        <button class="great" onclick="sendMood('great')">Отличное</button>
+        <img src="/images/great.png" alt="Отличное">
+      </div>
+      <div class="option">
+        <button class="ok" onclick="sendMood('ok')">Нормальное</button>
+        <img src="/images/ok.png" alt="Нормальное">
+      </div>
+      <div class="option">
+        <button class="bad" onclick="sendMood('bad')">Плохое</button>
+        <img src="/images/bad.png" alt="Плохое">
+      </div>
+    </div>
+
+    <h2>Последние записи</h2>
+    <ul id="list"></ul>
+  </main>
+
+  <script>
+    const names = { great: "Отличное", ok: "Нормальное", bad: "Плохое" };
+
+    async function loadMoods() {
+      const res = await fetch("/api/moods");
+      const moods = await res.json();
+      const list = document.getElementById("list");
+      list.innerHTML = "";
+      for (const m of moods) {
+        const li = document.createElement("li");
+        const date = new Date(m.created_at).toLocaleString("ru-RU");
+        li.innerHTML = `<span>${names[m.value]}</span><span class="time">${date}</span>`;
+        list.appendChild(li);
+      }
+    }
+
+    async function sendMood(value) {
+      await fetch("/api/moods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value })
+      });
+      loadMoods();
+    }
+
+    loadMoods();
+  </script>
+</body>
+</html>
