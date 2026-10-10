@@ -1,0 +1,33 @@
+ЧАСТЬ В — как запустить и проверить (macOS + Docker Desktop)
+
+0. Убрать старый контейнер из неудачных попыток:
+     docker rm -f nginx-lab
+
+1. Распаковать архив, зайти в папку lab1-v:
+     cd lab1-v
+
+2. Запуск (официальный образ nginx, apt не нужен):
+     ./run.sh
+   В конце должно быть: "syntax is ok" / "test is successful".
+
+3. Проверки:
+     ./check-v.sh 2>&1 | tee commands.txt
+   Файл commands.txt — это то, что кидать в чат вместе со скриншотом.
+
+4. (по желанию, для скриншота в браузере) в /etc/hosts добавить:
+     127.0.0.1 site1.local site2.local
+   и открыть http://site1.local:8080 и http://site2.local:8080
+
+5. Остановка:  ./run.sh stop
+
+Что отдать Г: 20-sites.conf, 30-errors.conf,
+static/, docs/, site2/, errors/, commands.txt, скриншот.
+
+Важно для сборки (согласовать с Г, А, Б):
+ - 20-sites.conf ждёт upstream "backend" из 00-upstream.conf (часть Б).
+ - Сейчас server слушают 80. Для финала А делает 443+redirect: Г/А поменяют
+   listen в server-блоках site1/site2 на "listen 443 ssl;" + ssl_certificate,
+   а порт 80 оставят только под редирект.
+ - limit_req на /api и location /admin добавляет А (в server site1.local).
+ - В server-блоках есть location /errors/ (internal) — нужен для кастомной 404.
+ - Пути на сервере: /var/www/lab1/{static,docs,site2,errors}.
