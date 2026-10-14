@@ -1,0 +1,105 @@
+1) site1.local / -> 200 и страница site1
++ curl -s -i --resolve site1.local:8080:127.0.0.1 http://site1.local:8080/
++ head -n 12
+HTTP/1.1 200 OK
+Server: nginx/1.30.5
+Date: Sat, 10 Oct 2026 15:22:02 GMT
+Content-Type: text/html
+Content-Length: 926
+Last-Modified: Sat, 10 Oct 2026 15:11:15 GMT
+Connection: keep-alive
+ETag: "6aca5593-39e"
+Accept-Ranges: bytes
+
+<!doctype html>
+<html lang="ru">
++ set +x
+  ✅ 200
+  ✅ контент site1
+
+2) site1.local /docs/ -> 200 (alias)
++ curl -s -i --resolve site1.local:8080:127.0.0.1 http://site1.local:8080/docs/
++ head -n 12
+HTTP/1.1 200 OK
+Server: nginx/1.30.5
+Date: Sat, 10 Oct 2026 15:22:02 GMT
+Content-Type: text/html
+Content-Length: 478
+Last-Modified: Sat, 10 Oct 2026 15:11:16 GMT
+Connection: keep-alive
+ETag: "6aca5594-1de"
+Accept-Ranges: bytes
+
+<!doctype html>
+<html lang="ru">
++ set +x
+  ✅ 200
+  ✅ отдалась страница из каталога docs
+
+3) site2.local / -> 200 и страница site2
++ curl -s -i --resolve site2.local:8080:127.0.0.1 http://site2.local:8080/
++ head -n 12
+HTTP/1.1 200 OK
+Server: nginx/1.30.5
+Date: Sat, 10 Oct 2026 15:22:02 GMT
+Content-Type: text/html
+Content-Length: 342
+Last-Modified: Sat, 10 Oct 2026 15:11:17 GMT
+Connection: keep-alive
+ETag: "6aca5595-156"
+Accept-Ranges: bytes
+
+<!doctype html>
+<html lang="ru">
++ set +x
+  ✅ контент site2
+
+4) виртуальные хосты разведены: site2 не отдаёт контент site1
+  ✅ site2/docs/ -> 404
+  ✅ в site2 нет контента site1
+  ✅ в site1 нет контента site2
+
+5) чужой Host -> default-сервер, ничего лишнего
++ curl -s -i -H 'Host: evil.example' http://127.0.0.1:8080/
++ head -n 12
+HTTP/1.1 404 Not Found
+Server: nginx/1.30.5
+Date: Sat, 10 Oct 2026 15:22:02 GMT
+Content-Type: text/html
+Content-Length: 362
+Connection: keep-alive
+ETag: "6aca5597-16a"
+
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>404 — не найдено</title></head>
+<body style="font-family:system-ui,sans-serif;text-align:center;margin-top:15vh">
++ set +x
+  ✅ чужой Host -> 404
+  ✅ контент проектов не отдан
+
+6) несуществующая страница -> своя 404
++ curl -s -i --resolve site1.local:8080:127.0.0.1 http://site1.local:8080/no-such-page
++ head -n 14
+HTTP/1.1 404 Not Found
+Server: nginx/1.30.5
+Date: Sat, 10 Oct 2026 15:22:02 GMT
+Content-Type: text/html
+Content-Length: 362
+Connection: keep-alive
+ETag: "6aca5597-16a"
+
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>404 — не найдено</title></head>
+<body style="font-family:system-ui,sans-serif;text-align:center;margin-top:15vh">
+  <h1>CUSTOM-404</h1>
+  <p>Такой страницы у нас нет. Проверьте адрес.</p>
++ set +x
+  ✅ код 404
+  ✅ своя страница 404
+
+7) /errors/404.html напрямую недоступен (internal)
+  ✅ internal работает
+
+Итого: 13 ок, 0 ошибок

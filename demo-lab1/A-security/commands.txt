@@ -1,0 +1,40 @@
+=========================================================
+Часть А — HTTPS, редирект, /admin (Basic Auth), limit_req
+Участник: Олег
+=========================================================
+
+### 1. HTTP → HTTPS редирект
+$ curl -I http://localhost
+HTTP/1.1 301 Moved Permanently
+Server: nginx/1.30.5
+Location: https://localhost/
+
+### 2. HTTPS работает (SSL)
+$ curl -k https://localhost
+OK: static stub
+
+### 3. /admin/ без пароля → 401
+$ curl -k -I https://localhost/admin/
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Basic realm="Restricted Area"
+
+### 4. /admin/ с паролем (admin:admin123) → 200
+$ curl -k -u admin:admin123 https://localhost/admin/
+<h1>Hello, admin!</h1>
+
+### 5. /api/ одиночный запрос → 200
+$ curl -k -o /dev/null -s -w "%{http_code}\n" https://localhost/api/
+200
+
+### 6. Флуд 30 параллельными запросами на /api/ → 429
+$ seq 1 30 | xargs -P 30 -I {} curl -k -o /dev/null -s -w "%{http_code}\n" https://localhost/api/ | sort | uniq -c
+     10 200
+     20 429
+
+### 7. После паузы 2 сек лимит восстанавливается → 200
+$ sleep 2 && curl -k -o /dev/null -s -w "%{http_code}\n" https://localhost/api/
+200
+
+=========================================================
+Все проверки пройдены.
+=========================================================

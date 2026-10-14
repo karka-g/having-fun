@@ -43,6 +43,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+from fastapi import Request
+
+@app.middleware("http")
+async def add_backend_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Backend"] = os.getenv("BACKEND_ID", "1")
+    return response
 app.mount("/images", StaticFiles(directory=BASE_DIR / "frontend" / "images"), name="images")
 
 class MoodIn(BaseModel):

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>site1.local</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 4rem auto; padding: 0 1rem; }
+    code { background: #eee; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>site1.local</h1>
+  <p>Это фронтенд проекта 1. Статику отдаёт nginx.</p>
+  <ul>
+    <li><a href="/docs/">/docs/</a> — документация (alias)</li>
+    <li><a href="/api/">/api/</a> — бэкенд через upstream</li>
+  </ul>
+  <p>Ответил бэкенд: <code id="be">...</code></p>
+  <script>
+    fetch('/api/').then(r => document.getElementById('be').textContent =
+      'X-Backend: ' + (r.headers.get('X-Backend') || 'нет заголовка'))
+      .catch(() => document.getElementById('be').textContent = 'недоступен');
+  </script>
+</body>
+</html>

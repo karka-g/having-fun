@@ -1,0 +1,22 @@
+Часть Б: два бэкенда (FastAPI) + upstream
+
+1. Скопировать .env.example в .env (в корне репозитория).
+2. Поднять БД (порт 5433): docker compose up -d
+3. Установить зависимости: pip install -r backend/requirements.txt
+4. Запустить бэкенды из папки backend/ в двух разных окнах, по очереди.
+
+   PowerShell:
+   $env:BACKEND_ID="1"; python -m uvicorn main:app --host 127.0.0.1 --port 3001
+   $env:BACKEND_ID="2"; python -m uvicorn main:app --host 127.0.0.1 --port 3002
+
+   Linux/macOS:
+   BACKEND_ID=1 python -m uvicorn main:app --host 127.0.0.1 --port 3001
+   BACKEND_ID=2 python -m uvicorn main:app --host 127.0.0.1 --port 3002
+
+5. Проверка:
+   curl -i http://localhost:3001/api/moods   (заголовок X-Backend: 1)
+   curl -i http://localhost:3002/api/moods   (заголовок X-Backend: 2)
+
+6. Конфиг upstream: 00-upstream.conf положить в conf.d/ nginx.
+   В location /api/ использовать: proxy_pass http://backend;
+   (без слеша в конце).

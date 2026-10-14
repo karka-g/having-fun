@@ -1,0 +1,49 @@
+﻿=========================================================
+Часть Б - два бэкенда, upstream, балансировка, failover
+Участник: Василий
+=========================================================
+### 1. Бэкенд 1 напрямую (порт 3001)
+$ curl -s -D - -o NUL http://localhost:3001/api/moods | findstr /i "HTTP x-backend"
+HTTP/1.1 200 OK
+x-backend: 1
+
+### 2. Бэкенд 2 напрямую (порт 3002)
+$ curl -s -D - -o NUL http://localhost:3002/api/moods | findstr /i "HTTP x-backend"
+HTTP/1.1 200 OK
+x-backend: 2
+
+### 3. Конфиг nginx корректен
+$ nginx -t
+nginx: the configuration file .../conf/nginx.conf syntax is ok
+nginx: configuration file .../conf/nginx.conf test is successful
+
+### 4. Балансировка: запросы чередуются 1, 2, 1, 2
+$ 1..6 | % { (curl.exe -s -D - -o NUL http://localhost:8080/api/moods | findstr /i "HTTP x-backend") -join " " }
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+
+### 5. Failover: бэкенд 1 остановлен, все ответы от бэкенда 2
+$ 1..6 | % { (curl.exe -s -D - -o NUL http://localhost:8080/api/moods | findstr /i "HTTP x-backend") -join " " }
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 2
+
+### 6. Восстановление: бэкенд 1 запущен снова, через 11 сек чередование вернулось
+$ Start-Sleep -Seconds 11; 1..6 | % { (curl.exe -s -D - -o NUL http://localhost:8080/api/moods | findstr /i "HTTP x-backend") -join " " }
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+HTTP/1.1 200 OK x-backend: 1
+HTTP/1.1 200 OK x-backend: 2
+
+=========================================================
+Все проверки пройдены.
+=========================================================
