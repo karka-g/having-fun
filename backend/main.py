@@ -78,3 +78,8 @@ def list_moods():
 @app.get("/")
 def index():
     return FileResponse(BASE_DIR / "frontend" / "index.html")
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
