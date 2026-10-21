@@ -1,47 +1,92 @@
-# Часть A. Плохой Dockerfile
+# Часть B: Хороший Dockerfile
 
-## Что делали
+## 🎯 Что было сделано
+В этой части мы переписали Dockerfile для нашего FastAPI-приложения (из Лабы 0), исправив все ошибки из части А. Теперь образ собирается с помощью multi-stage build, работает от безопасного пользователя и использует кеширование слоев.
 
-Для backend-сервиса из Лабы 0 (FastAPI + psycopg) написали сознательно плохой Dockerfile. В нём 5 bad practices, каждая помечена комментарием `# BAD: ...`. Цель - на конкретных замерах показать, почему так делать нельзя, и сравнить с хорошим образом из части B.
+## 📄 Код `Dockerfile`
 
-## Dockerfile
+```dockerfile
+FROM python:3.12-slim-bookworm AS builder
 
-    FROM python:latest
+WORKDIR /app
 
-    WORKDIR /app
+COPY backend/requirements.txt .
 
-    COPY . .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-    RUN pip install -r backend/requirements.txt
 
-    EXPOSE 5000
+FROM python:3.12-slim-bookworm
 
-    CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
+WORKDIR /app
 
-## Bad practices
+COPY --from=builder /install /usr/local
 
-1. **`FROM python:latest`**. Версия базового образа не зафиксирована. Следующая сборка может подтянуть другую мажорную версию и сломать приложение.
-2. **`COPY . .` до `pip install`**. Любая правка кода инвалидирует слой, `pip install` перезапускается. Кеш слоёв не работает.
-3. **`pip install` без `--no-cache-dir`**. Кеш pip остаётся внутри слоя и раздувает образ.
-4. **Нет `.dockerignore`** - `COPY . .` втянул `.git/`, `lab1/`, `screenshot.png`. Контекст сборки 46.89 МБ.
-5. **Нет `USER`**. контейнер запускается от root.
+COPY backend/ /app/backend/
+COPY frontend/ /app/frontend/
 
-## Замеры
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
-| Замер                               | Результат                               |
-| ----------------------------------- | --------------------------------------- |
-| Первая сборка                       | 75.4 сек                                |
-| Пересборка после правки 1 строки    | 27.6 сек (real 0m27.669s)               |
-| Из них `pip install` при пересборке | 11.7 сек. Выполнился заново             |
-| Размер образа                       | 491 МБ (content) / 1.81 ГБ (disk usage) |
+EXPOSE 5000
 
-## Скриншоты
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')" || exit 1
 
-- `A-01-build.jpg`. сборка образа (75.4 сек)
-- `A-02-size.jpg`. размер образа (491 МБ)
-- `A-03-changed-line.jpg`. строка в `backend/main.py`, которую меняли
-- `A-04-timing.jpg`. пересборка после правки (27.6 сек)
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
+```
 
-## Вывод
+## 🚫 Файл .dockerignore
 
-Из-за `COPY . .` перед `pip install` правка одной строки кода полностью инвалидирует кеш слоёв и перезапускает установку зависимостей. Пересборка занимает 27.6 секунды вместо ожидаемых 2–5. Образ раздут до 491 МБ из-за отсутствия `--no-cache-dir` и `.dockerignore`. Базовый образ не зафиксирован по версии, контейнер работает от root. В части B показано, как те же функции реализуются в образе меньше и с пересборкой за секунды.
+Чтобы контекст сборки не раздувался лишними файлами, был добавлен `.dockerignore`:
+
+```dockerignore
+text
+.git
+.gitignore
+node_modules
+__pycache__
+*.md
+venv/
+.env
+.env.example
+lab1-nginx/
+lab1/
+lab2-docker/
+screenshot.png
+``` 
+
+## 🔄 Исправления (Bad → Good)
+
+| Плохая практика (Часть А) | Как исправлено в Части Б |
+| :--- | :--- |
+| `FROM python:latest` | Зафиксирована версия `python:3.12-slim-bookworm` |
+| `COPY . .` перед `pip install` | Сначала копируется `requirements.txt`, затем пакеты, и только потом код |
+| `pip install` без `--no-cache-dir` | Добавлен флаг `--no-cache-dir` |
+| Нет `.dockerignore` | Добавлен `.dockerignore` (контекст сборки сократился с 46 МБ до 1.1 МБ) |
+| Запуск от `root` | Создан юзер `appuser`, контейнер работает от него |
+| Один этап сборки | Использован multi-stage build (builder + runtime) |
+| Нет проверки здоровья | Добавлен `HEALTHCHECK` на `/health` |
+
+## 📊 Результаты замеров
+
+| Параметр | Часть А (Плохой) | Часть Б (Хороший) | Результат |
+| :--- | :--- | :--- | :--- |
+| **Размер образа (Content size)** | 491 MB | **62.4 MB** | Уменьшился в **~8 раз** |
+| **Пересборка после правки кода** | 27.6 сек | **1.88 сек** | Ускорилась в **~15 раз** (сработал кеш) |
+| **Пользователь (`whoami`)** | root | **appuser** | Повышена безопасность |
+| **Статус контейнера** | — | **`Up (healthy)`** | Работает HEALTHCHECK |
+
+## 📸 Скриншоты проверок
+
+Все доказательства лежат в папке `screenshots/`:
+
+- Сборка образа (успешно, 13 шагов): `B-01-build.png`
+- Размер образа (62.4 MB): `B-02-size.png`
+- Проверка пользователя (whoami → appuser): `B-03-whoami.png`
+- Проверка статуса (Up (healthy)): `B-04-health.png`
+- Замер кеша (пересборка за 1.88 сек): `B-05-timing.png`
+
+## 💡 Вывод
+
+Благодаря правильному порядку слоев (сначала `requirements.txt`, потом код) и использованию `--no-cache-dir`, нам удалось ускорить пересборку до 1.88 секунды. Multi-stage build и slim версия базового образа позволили уменьшить размер с 491 МБ до 62.4 МБ. Приложение теперь запускается от безопасного пользователя appuser и имеет встроенную проверку здоровья.
+
