@@ -1,0 +1,20 @@
+# Намеренно слишком тесные лимиты: нужны, чтобы поймать троттлинг CPU и OOM.
+# Накладывается поверх основного файла:
+#   docker compose -f docker-compose.yml -f docker-compose.tight.yml up -d
+# memswap_limit равен memory, иначе при включённом swap контейнер не упрётся в лимит памяти
+# и OOM не случится.
+services:
+  backend:
+    memswap_limit: 48M
+    deploy:
+      resources:
+        limits:
+          cpus: "0.10"
+          memory: 48M
+  db:
+    memswap_limit: 64M
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 64M
