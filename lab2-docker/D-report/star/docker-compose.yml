@@ -62,8 +62,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 256M
+          cpus: "0.5"
+          memory: 128M
 
   frontend:
     image: nginx:1.27-alpine
