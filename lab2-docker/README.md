@@ -463,11 +463,3 @@ server {
     # устойчивый стек (звёздочка)
     cd ../D-report/star && docker compose up -d --build
 
-Финальный запуск с чистого клона: `D-01-final-up.png` (ЗАПОЛНИТЬ).
-
-## Что ещё осталось сделать (убрать перед сдачей)
-
-1. Загрузить скриншот `D-03-timing-comparison.png` в `D-report/screenshots/` и мемы `meme-dab.jpg`, `meme-clock.jpg`, `meme-done.jpg` в `D-report/memes/`.
-2. Положить скриншоты звёздочки в `D-report/star/screenshots/`: `S-01-ps-healthy.png`, `S-02-kill-db.png`, `S-02-recovery.png`, `S-03-limits-config.png`, `S-04-stats-tight.png`, `S-04b-cpu-steps.png`, `S-05-oom.png`, `S-06-stats-load.png`, `S-06-load-result.png`.
-3. Проверить всё с чистого клона и сделать `D-01-final-up.png`.
-4. Удалить этот список.
