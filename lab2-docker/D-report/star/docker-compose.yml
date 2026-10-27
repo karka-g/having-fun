@@ -1,0 +1,113 @@
+# Лаба 2, со звёздочкой: устойчивый стек.
+# Надстройка над lab2-docker/C-compose: healthcheck у всех сервисов, политика restart,
+# depends_on с service_healthy и лимиты CPU/памяти.
+#
+# Отдельное имя проекта, контейнеров и порт 8081, чтобы стек не конфликтовал
+# с обычным стеком из C-compose (он занимает 8080). Тома у проектов тоже разные.
+#
+# Запуск:  cd lab2-docker/D-report/star && docker compose up -d --build
+name: having-fun-star
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lab2s-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mood}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mood_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mood_db}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  backend:
+    build:
+      context: ../../..
+      dockerfile: lab2-docker/B-good/Dockerfile
+    image: having-fun-backend:good
+    container_name: lab2s-backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      BACKEND_ID: compose-star
+      POSTGRES_USER: ${POSTGRES_USER:-mood}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mood_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mood_db}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend-net
+      - frontend-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
+  frontend:
+    image: nginx:1.27-alpine
+    container_name: lab2s-frontend
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - ../../C-compose/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../../frontend:/usr/share/nginx/html:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - frontend-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 64M
+
+  # Генератор нагрузки: запускается только по запросу (profile "load") внутри frontend-net,
+  # ходит через nginx на бэкенд и дальше в БД. Не требует установки ab/hey.
+  load:
+    image: python:3.12-slim-bookworm
+    profiles: ["load"]
+    volumes:
+      - ./loadgen.py:/loadgen.py:ro
+    networks:
+      - frontend-net
+    depends_on:
+      frontend:
+        condition: service_healthy
+    command: ["python", "/loadgen.py", "http://frontend/api/moods", "50", "30"]
+
+volumes:
+  db_data:
+
+networks:
+  backend-net:
+  frontend-net:

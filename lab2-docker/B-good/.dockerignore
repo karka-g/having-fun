@@ -1,0 +1,12 @@
+.git
+.gitignore
+node_modules
+__pycache__
+*.md
+venv/
+.env
+.env.example
+lab1-nginx/
+lab1/
+lab2-docker/
+screenshot.png
