@@ -1,0 +1,15 @@
+# ВРЕМЕННЫЙ файл - ТОЛЬКО для демонстрации CVE через Trivy.
+# В продакшен не идёт. В ветке lab3-cicd используется Dockerfile из lab2-docker/B-good.
+# =============================================
+
+FROM python:3.7
+
+WORKDIR /app
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt || true
+
+COPY backend/ /app/backend/
+
+EXPOSE 5000
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "5000"]
