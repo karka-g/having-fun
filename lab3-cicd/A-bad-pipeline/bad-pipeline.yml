@@ -1,0 +1,85 @@
+# ==========================================================================
+# ПЛОХОЙ пайплайн (Лаба 3, часть A) — сознательно сделан с bad practices.
+# НЕ ИСПОЛЬЗОВАТЬ как образец! Хорошая версия — good-pipeline.yml (часть B).
+#
+# Запуск: только при изменении ЭТОГО файла (чтобы не мешать good-pipeline
+# и не шуметь на каждый пуш команды) + вручную через "Run workflow".
+# ==========================================================================
+name: Bad Pipeline (demo)
+
+on:
+  push:
+    branches: [lab3-cicd]
+    paths:
+      - ".github/workflows/bad-pipeline.yml"
+  workflow_dispatch:
+
+# BAD #2: пароль зашит прямо в yaml.
+# Он попадёт в историю git, виден всем, у кого есть доступ к репо,
+# и его нельзя ротировать, не переписав историю.
+# Хорошо: ${{ secrets.DB_PASSWORD }} (GitHub Secrets, значение маскируется в логах).
+env:
+  DB_PASSWORD: supersecret123
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # BAD #1: версия экшена не зафиксирована, указана плавающая ветка main.
+      # Любой коммит в репозиторий экшена может сломать (или скомпрометировать)
+      # наш пайплайн без единого изменения с нашей стороны.
+      # Хорошо: actions/checkout@v4 (а в идеале — полный SHA коммита).
+      - uses: actions/checkout@main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          # BAD #3: нет кеша pip. Каждый прогон качает и ставит все зависимости
+          # с нуля. Хорошо: cache: "pip" (или actions/cache@v4).
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      # BAD #2 (продолжение): пароль печатается в лог. Любой, кто откроет
+      # лог прогона, увидит его в открытом виде.
+      - name: Print config
+        run: echo "PASSWORD=$DB_PASSWORD"
+
+      # DEMO: этот шаг специально падает, имитируя упавшие тесты.
+      # Он нужен, чтобы показать BAD #6: деплой всё равно произойдёт.
+      - name: Run tests
+        run: python -c "assert 1 == 2, 'tests failed (demo)'"
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main # BAD #1 (то же самое)
+
+      # BAD #5: тег :latest — плывущий. По нему нельзя понять, какая версия
+      # кода внутри образа, и нельзя откатиться на предыдущую.
+      # Хорошо: тег = SHA коммита, например app:${{ github.sha }}.
+      #
+      # BAD #3 (продолжение): нет кеша слоёв Docker (cache-from / cache-to),
+      # образ каждый раз собирается целиком.
+      - name: Build image
+        run: docker build -f lab2-docker/B-good/Dockerfile -t app:latest .
+
+      # BAD #4: нет стадии сканирования образа (Trivy).
+      # Образ с критическими CVE спокойно уйдёт дальше.
+      # Хорошо: aquasecurity/trivy-action с exit-code: '1' на CRITICAL.
+
+  deploy:
+    runs-on: ubuntu-latest
+    # BAD #6: always() — деплой запускается ВСЕГДА, даже если test упал.
+    # Сломанный код уезжает на сервер.
+    # Хорошо: needs: [test, build] и if: success() (или вообще без if).
+    needs: [test, build]
+    if: always()
+    steps:
+      # Деплой имитируется echo: на общий self-hosted runner команды
+      # плохого пайплайна отправлять нельзя.
+      - name: Deploy
+        run: |
+          echo "Deploying app:latest to production..."
+          echo "Using DB password: $DB_PASSWORD"
+          echo "Deploy finished (даже если тесты красные)"
