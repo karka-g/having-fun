@@ -19,7 +19,7 @@ on:
 # и его нельзя ротировать, не переписав историю.
 # Хорошо: ${{ secrets.DB_PASSWORD }} (GitHub Secrets, значение маскируется в логах).
 env:
-  DB_PASSWORD: supersecret123
+  DB_PASSWORD: demo-bad-pass-777
 
 jobs:
   test:
